@@ -45,15 +45,32 @@ const patientsList = [
 
 const seedData = async () => {
   try {
-    await mongoose.connect(process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/healthcare');
+    await mongoose.connect(process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/healthcare', {
+      tls: true,
+      tlsAllowInvalidCertificates: true,
+      connectTimeoutMS: 30000,
+    });
 
-    await User.deleteMany();
-    await Doctor.deleteMany();
+    const seedEmails = [
+      ...doctorsList.map(d => d.email),
+      ...patientsList.map(p => p.email)
+    ];
+
+    // Only delete users that are in our seed list to preserve user's own data
+    await User.deleteMany({ email: { $in: seedEmails } });
+    
+    // Delete doctors whose userId is now gone or who are in our seed list
+    // A better way is to delete doctors where specialization exists (seeded) 
+    // but for safety let's just delete seeded specialists
+    await Doctor.deleteMany({ specialization: { $in: [...new Set(doctorsList.map(d => d.spec))] } });
+    
+    // For simplicity, we'll still refresh appointments/reviews/history 
+    // as they are tightly coupled with the seeded users
     await Appointment.deleteMany();
     await Review.deleteMany();
     await MedicalHistory.deleteMany();
 
-    console.log('Data Destroyed');
+    console.log('Seed Data Refreshed (Preserving manual accounts)');
 
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash('password123', salt);

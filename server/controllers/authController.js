@@ -1,4 +1,5 @@
 const User = require('../models/User');
+const Doctor = require('../models/Doctor');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 
@@ -34,6 +35,24 @@ exports.register = async (req, res, next) => {
       role: role || 'patient'
     });
 
+    // If role is doctor, create doctor profile with isApproved: false
+    if (user.role === 'doctor') {
+      await Doctor.create({
+        userId: user._id,
+        specialization: req.body.specialization || 'General Physician',
+        experience: req.body.experience || 1,
+        consultationFee: req.body.consultationFee || 500,
+        isApproved: false,
+        availableSlots: [
+          { day: 'Monday', startTime: '09:00', endTime: '17:00', isAvailable: true },
+          { day: 'Tuesday', startTime: '09:00', endTime: '17:00', isAvailable: true },
+          { day: 'Wednesday', startTime: '09:00', endTime: '17:00', isAvailable: true },
+          { day: 'Thursday', startTime: '09:00', endTime: '17:00', isAvailable: true },
+          { day: 'Friday', startTime: '09:00', endTime: '17:00', isAvailable: true }
+        ]
+      });
+    }
+
     res.status(201).json({
       success: true,
       message: 'User registered successfully'
@@ -46,15 +65,31 @@ exports.register = async (req, res, next) => {
 exports.login = async (req, res, next) => {
   try {
     const { email, password } = req.body;
+    console.log(`\n--- Login Attempt ---`);
+    console.log(`Email: ${email}`);
 
     const user = await User.findOne({ email });
     if (!user) {
+      console.log(`Result: User not found in database.`);
       return res.status(401).json({ success: false, message: 'Invalid credentials', code: 'INVALID_CREDENTIALS' });
     }
 
     const isMatch = await bcrypt.compare(password, user.password);
+    console.log(`Password Match: ${isMatch}`);
+
     if (!isMatch) {
       return res.status(401).json({ success: false, message: 'Invalid credentials', code: 'INVALID_CREDENTIALS' });
+    }
+
+    // Secure check: If role is doctor, verify approved Doctor profile exists
+    if (user.role === 'doctor') {
+      const doctor = await Doctor.findOne({ userId: user._id });
+      if (!doctor) {
+        return res.status(403).json({ success: false, message: 'Doctor profile not found. Please contact administration.', code: 'FORBIDDEN' });
+      }
+      if (!doctor.isApproved) {
+        return res.status(403).json({ success: false, message: 'This doctor account is pending approval.', code: 'FORBIDDEN' });
+      }
     }
 
     const accessToken = generateAccessToken(user._id);
@@ -79,6 +114,63 @@ exports.login = async (req, res, next) => {
     next(error);
   }
 };
+
+exports.doctorLogin = async (req, res, next) => {
+  try {
+    const { email, password } = req.body;
+    console.log(`\n--- Doctor Portal Login Attempt ---`);
+    console.log(`Email: ${email}`);
+
+    const user = await User.findOne({ email });
+    if (!user) {
+      console.log(`Result: User not found in database.`);
+      return res.status(401).json({ success: false, message: 'Invalid credentials', code: 'INVALID_CREDENTIALS' });
+    }
+
+    if (user.role !== 'doctor') {
+      console.log(`Result: User role ${user.role} is not authorized for Doctor Portal.`);
+      return res.status(403).json({ success: false, message: 'This account is not authorized to access the Doctor Portal.', code: 'FORBIDDEN' });
+    }
+
+    const isMatch = await bcrypt.compare(password, user.password);
+    console.log(`Password Match: ${isMatch}`);
+
+    if (!isMatch) {
+      return res.status(401).json({ success: false, message: 'Invalid credentials', code: 'INVALID_CREDENTIALS' });
+    }
+
+    // Verify Doctor profile exists and is approved
+    const doctor = await Doctor.findOne({ userId: user._id });
+    if (!doctor) {
+      return res.status(403).json({ success: false, message: 'Doctor profile not found. Please contact administration.', code: 'FORBIDDEN' });
+    }
+    if (!doctor.isApproved) {
+      return res.status(403).json({ success: false, message: 'This doctor account is pending approval.', code: 'FORBIDDEN' });
+    }
+
+    const accessToken = generateAccessToken(user._id);
+    const refreshToken = generateRefreshToken(user._id);
+
+    user.refreshToken = refreshToken;
+    await user.save();
+
+    res.json({
+      success: true,
+      accessToken,
+      refreshToken,
+      user: {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        profilePhoto: user.profilePhoto
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 
 exports.logout = async (req, res, next) => {
   try {

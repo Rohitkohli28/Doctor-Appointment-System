@@ -1,6 +1,7 @@
 const Appointment = require('../models/Appointment');
 const Doctor = require('../models/Doctor');
 const User = require('../models/User');
+const MedicalRecord = require('../models/MedicalRecord');
 const sendEmail = require('../utils/sendEmail');
 
 exports.createAppointment = async (req, res, next) => {
@@ -130,7 +131,18 @@ exports.cancelAppointment = async (req, res, next) => {
 
 exports.completeAppointment = async (req, res, next) => {
   try {
-    const { prescription, notes, diagnosis } = req.body;
+    const { 
+      diagnosis, 
+      prescriptions, 
+      doctorNotes, 
+      recommendedTests, 
+      medicalAdvice, 
+      followUpDate, 
+      followUpInstructions,
+      prescription, // legacy fallback
+      notes // legacy fallback
+    } = req.body;
+    
     const appointment = await Appointment.findById(req.params.id);
 
     if (!appointment) return res.status(404).json({ success: false, message: 'Not found' });
@@ -140,13 +152,46 @@ exports.completeAppointment = async (req, res, next) => {
         return res.status(403).json({ success: false, message: 'Not authorized' });
     }
 
+    // Format a legacy prescription string to preserve backwards compatibility
+    let legacyPrescriptionStr = '';
+    if (prescriptions && Array.isArray(prescriptions) && prescriptions.length > 0) {
+      legacyPrescriptionStr = prescriptions.map(p => 
+        `- ${p.medicineName}: ${p.dosage || ''} | ${p.frequency || ''} | ${p.duration || ''}${p.instructions ? ` (${p.instructions})` : ''}`
+      ).join('\n');
+    } else {
+      legacyPrescriptionStr = prescription || '';
+    }
+
     appointment.status = 'completed';
-    appointment.prescription = prescription;
-    appointment.notes = notes;
+    appointment.prescription = legacyPrescriptionStr;
+    appointment.notes = doctorNotes || notes || '';
     appointment.diagnosis = diagnosis;
     await appointment.save();
 
-    res.json({ success: true, data: appointment });
+    // Create or update detailed medical record
+    let record = await MedicalRecord.findOne({ appointment: appointment._id });
+    const recordData = {
+      patient: appointment.patientId,
+      doctor: doctor._id,
+      appointment: appointment._id,
+      symptoms: appointment.symptoms,
+      diagnosis,
+      prescriptions: prescriptions || [],
+      doctorNotes: doctorNotes || notes || '',
+      recommendedTests: recommendedTests || [],
+      medicalAdvice: medicalAdvice || '',
+      followUpDate: followUpDate || null,
+      followUpInstructions: followUpInstructions || '',
+      consultationType: appointment.type || 'in-person'
+    };
+
+    if (record) {
+      record = await MedicalRecord.findOneAndUpdate({ appointment: appointment._id }, recordData, { new: true });
+    } else {
+      record = await MedicalRecord.create(recordData);
+    }
+
+    res.json({ success: true, data: appointment, record });
   } catch (error) {
     next(error);
   }
@@ -178,7 +223,6 @@ exports.rescheduleAppointment = async (req, res, next) => {
     next(error);
   }
 };
-
 exports.getAppointmentDetails = async (req, res, next) => {
   try {
     const appointment = await Appointment.findById(req.params.id)
@@ -189,6 +233,24 @@ exports.getAppointmentDetails = async (req, res, next) => {
       });
 
     if (!appointment) return res.status(404).json({ success: false, message: 'Not found' });
+
+    // Authorization check: Patient, Doctor, or Admin
+    const isPatient = appointment.patientId._id.toString() === req.user.id;
+    
+    // Find doctor profile if req.user is a doctor
+    let isDoctor = false;
+    if (req.user.role === 'doctor') {
+      const doctor = await Doctor.findOne({ userId: req.user.id });
+      if (doctor && appointment.doctorId._id.toString() === doctor._id.toString()) {
+        isDoctor = true;
+      }
+    }
+    
+    const isAdmin = req.user.role === 'admin';
+
+    if (!isPatient && !isDoctor && !isAdmin) {
+      return res.status(403).json({ success: false, message: 'Not authorized to view this appointment', code: 'FORBIDDEN' });
+    }
 
     res.json({ success: true, data: appointment });
   } catch (error) {

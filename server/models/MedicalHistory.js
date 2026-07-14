@@ -29,7 +29,9 @@ const medicalHistorySchema = new mongoose.Schema({
 // Pre-save hook to update lastUpdated
 medicalHistorySchema.pre('save', function(next) {
   this.lastUpdated = Date.now();
-  next();
+  if (typeof next === 'function') {
+    next();
+  }
 });
 
 module.exports = mongoose.model('MedicalHistory', medicalHistorySchema);

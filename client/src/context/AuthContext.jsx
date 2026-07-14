@@ -46,6 +46,24 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const doctorLogin = async (email, password) => {
+    try {
+      const res = await api.post('/auth/doctor/login', { email, password });
+      
+      localStorage.setItem('accessToken', res.data.accessToken);
+      localStorage.setItem('refreshToken', res.data.refreshToken);
+      localStorage.setItem('user', JSON.stringify(res.data.user));
+      
+      setUser(res.data.user);
+      setIsAuthenticated(true);
+      toast.success('Logged in successfully to Doctor Portal!');
+      return res.data;
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Doctor login failed');
+      throw err;
+    }
+  };
+
   const registerUser = async (userData) => {
     try {
       const res = await api.post('/auth/register', userData);
@@ -74,7 +92,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated, loading, login, registerUser, logout }}>
+    <AuthContext.Provider value={{ user, isAuthenticated, loading, login, doctorLogin, registerUser, logout }}>
       {children}
     </AuthContext.Provider>
   );

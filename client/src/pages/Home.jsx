@@ -4,12 +4,20 @@ import { Search, MapPin, ArrowRight, Activity, HeartPulse, UserCircle } from 'lu
 import { motion } from 'framer-motion';
 import api from '../utils/api';
 import DoctorCard from '../components/DoctorCard';
+import { useAuth } from '../hooks/useAuth';
 
 const Home = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [city, setCity] = useState('');
   const [topDoctors, setTopDoctors] = useState([]);
   const navigate = useNavigate();
+  const { user, isAuthenticated } = useAuth();
+
+  useEffect(() => {
+    if (isAuthenticated && user?.role === 'doctor') {
+      navigate('/doctor/dashboard');
+    }
+  }, [isAuthenticated, user, navigate]);
 
   const specializations = [
     { name: 'Cardiologist', icon: HeartPulse, color: 'text-rose-500', bg: 'bg-rose-50' },

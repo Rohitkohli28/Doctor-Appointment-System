@@ -10,6 +10,7 @@ const {
 } = require('../controllers/medicalHistoryController');
 const { protect } = require('../middleware/auth');
 const roleCheck = require('../middleware/roleCheck');
+const { doctorCheck } = require('../middleware/doctorAuth');
 const upload = require('../middleware/upload');
 
 router.get('/my', protect, roleCheck('patient'), getMyHistoryRecords);
@@ -21,6 +22,6 @@ router.route('/me')
 router.post('/me/documents', protect, roleCheck('patient'), upload.single('file'), uploadDocument);
 router.delete('/me/documents/:docId', protect, roleCheck('patient'), removeDocument);
 
-router.get('/patient/:patientId', protect, roleCheck('doctor'), getPatientHistory);
+router.get('/patient/:patientId', protect, doctorCheck, getPatientHistory);
 
 module.exports = router;

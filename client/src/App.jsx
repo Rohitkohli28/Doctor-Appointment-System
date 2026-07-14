@@ -19,13 +19,22 @@ import DoctorDashboard from './pages/DoctorDashboard';
 import MedicalHistory from './pages/MedicalHistory';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import DoctorLogin from './pages/DoctorLogin';
 
 const ProtectedRoute = ({ children, allowedRoles }) => {
   const { isAuthenticated, loading, user } = useAuth();
   
   if (loading) return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
-  if (!isAuthenticated) return <Navigate to="/login" />;
+  if (!isAuthenticated) {
+    if (allowedRoles && allowedRoles.includes('doctor')) {
+      return <Navigate to="/doctor/login" />;
+    }
+    return <Navigate to="/login" />;
+  }
   if (allowedRoles && !allowedRoles.includes(user?.role)) {
+    if (user?.role === 'doctor') {
+      return <Navigate to="/doctor/dashboard" />;
+    }
     return <Navigate to="/" />;
   }
   
@@ -47,6 +56,7 @@ function App() {
             <Route path="/doctors/:id" element={<DoctorProfile />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
+            <Route path="/doctor/login" element={<DoctorLogin />} />
 
             {/* Patient Routes */}
             <Route 
@@ -69,7 +79,23 @@ function App() {
             {/* Doctor Routes */}
             <Route 
               path="/doctor/dashboard" 
-              element={<ProtectedRoute allowedRoles={['doctor']}><DoctorDashboard /></ProtectedRoute>} 
+              element={<ProtectedRoute allowedRoles={['doctor']}><DoctorDashboard view="dashboard" /></ProtectedRoute>} 
+            />
+            <Route 
+              path="/doctor/appointments" 
+              element={<ProtectedRoute allowedRoles={['doctor']}><DoctorDashboard view="appointments" /></ProtectedRoute>} 
+            />
+            <Route 
+              path="/doctor/patients" 
+              element={<ProtectedRoute allowedRoles={['doctor']}><DoctorDashboard view="patients" /></ProtectedRoute>} 
+            />
+            <Route 
+              path="/doctor/availability" 
+              element={<ProtectedRoute allowedRoles={['doctor']}><DoctorDashboard view="availability" /></ProtectedRoute>} 
+            />
+            <Route 
+              path="/doctor/profile" 
+              element={<ProtectedRoute allowedRoles={['doctor']}><DoctorDashboard view="profile" /></ProtectedRoute>} 
             />
           </Routes>
         </main>

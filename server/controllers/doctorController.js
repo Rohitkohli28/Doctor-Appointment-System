@@ -60,6 +60,21 @@ exports.getDoctorById = async (req, res, next) => {
   }
 };
 
+exports.getMyDoctorProfile = async (req, res, next) => {
+  try {
+    const doctor = await Doctor.findOne({ userId: req.user.id })
+      .populate('userId', 'name email phone profilePhoto gender');
+
+    if (!doctor) {
+      return res.status(404).json({ success: false, message: 'Doctor profile not found', code: 'NOT_FOUND' });
+    }
+
+    res.json({ success: true, data: doctor });
+  } catch (error) {
+    next(error);
+  }
+};
+
 exports.updateDoctorProfile = async (req, res, next) => {
   try {
     const doctor = await Doctor.findOne({ userId: req.user.id });

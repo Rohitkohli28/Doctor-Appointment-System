@@ -1,8 +1,9 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Calendar, Clock, MapPin, User, DollarSign, XCircle, Info } from 'lucide-react';
+import { Calendar, Clock, MapPin, User, DollarSign, XCircle, Info, Stethoscope } from 'lucide-react';
+import { motion } from 'framer-motion';
 
-const AppointmentCard = ({ appointment, onCancel, isDoctor }) => {
+const AppointmentCard = ({ appointment, onCancel, onComplete, isDoctor }) => {
   const navigate = useNavigate();
   const {
     _id,
@@ -18,11 +19,11 @@ const AppointmentCard = ({ appointment, onCancel, isDoctor }) => {
 
   const getStatusColor = (status) => {
     switch (status) {
-      case 'confirmed': return 'bg-emerald-100 text-emerald-700 border-emerald-200';
-      case 'pending': return 'bg-amber-100 text-amber-700 border-amber-200';
-      case 'completed': return 'bg-blue-100 text-blue-700 border-blue-200';
-      case 'cancelled': return 'bg-rose-100 text-rose-700 border-rose-200';
-      default: return 'bg-gray-100 text-gray-700 border-gray-200';
+      case 'confirmed': return 'bg-emerald-50 text-emerald-700 border-emerald-100';
+      case 'pending': return 'bg-amber-50 text-amber-700 border-amber-100';
+      case 'completed': return 'bg-sky-50 text-sky-700 border-sky-100';
+      case 'cancelled': return 'bg-rose-50 text-rose-700 border-rose-100';
+      default: return 'bg-slate-50 text-slate-700 border-slate-100';
     }
   };
 
@@ -31,69 +32,83 @@ const AppointmentCard = ({ appointment, onCancel, isDoctor }) => {
   const photo = isDoctor ? patientId?.profilePhoto : doctorId?.userId?.profilePhoto;
 
   return (
-    <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 hover:shadow-md transition-shadow group">
-      <div className="flex justify-between items-start mb-6">
-        <div className="flex items-center gap-4">
-          <div className="w-14 h-14 rounded-full overflow-hidden bg-gray-100 ring-2 ring-white shadow-sm">
-            {photo ? (
-              <img src={photo} alt={name} className="w-full h-full object-cover" />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center bg-primary-50 text-primary-600 font-bold text-xl uppercase">
-                {name?.charAt(0)}
-              </div>
-            )}
+    <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100 hover:shadow-lg transition-all duration-300 group flex flex-col justify-between h-full lift-card">
+      <div>
+        <div className="flex justify-between items-start mb-5">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-xl overflow-hidden bg-slate-50 ring-2 ring-white shadow-sm shrink-0">
+              {photo ? (
+                <img src={photo} alt={name} className="w-full h-full object-cover" />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center bg-primary-50 text-primary-600 font-black text-lg uppercase">
+                  {name?.charAt(0)}
+                </div>
+              )}
+            </div>
+            <div className="min-w-0">
+              <h3 className="text-base font-bold text-slate-800 group-hover:text-primary-600 transition-colors tracking-tight line-clamp-1">
+                {isDoctor ? name : `Dr. ${name}`}
+              </h3>
+              <p className="text-slate-400 text-xs font-semibold truncate mt-0.5">{subText || 'Healthcare Practitioner'}</p>
+            </div>
           </div>
-          <div>
-            <h3 className="text-lg font-bold text-gray-900 group-hover:text-primary-600 transition-colors uppercase tracking-tight line-clamp-1">
-              Dr. {name}
-            </h3>
-            <p className="text-gray-500 text-sm font-medium">{subText || 'Specialist'}</p>
+          <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border ${getStatusColor(status)}`}>
+            {status}
+          </span>
+        </div>
+
+        <div className="space-y-2.5 mb-5 bg-slate-50 p-4 rounded-xl border border-slate-100 text-xs">
+          <div className="flex items-center gap-2.5 text-slate-600">
+            <Calendar className="w-4 h-4 text-primary-500" />
+            <span className="font-bold">{new Date(appointmentDate).toLocaleDateString(undefined, { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })}</span>
+          </div>
+          <div className="flex items-center gap-2.5 text-slate-600">
+            <Clock className="w-4 h-4 text-primary-500" />
+            <span className="font-bold">{timeSlot}</span>
+          </div>
+          <div className="flex items-center gap-2.5 text-slate-600">
+            <DollarSign className="w-4 h-4 text-primary-500" />
+            <span className="font-bold">Consultation Fee: ₹{consultationFee}</span>
           </div>
         </div>
-        <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider border shadow-sm ${getStatusColor(status)}`}>
-          {status}
-        </span>
+
+        {symptoms && (
+          <div className="mb-5 px-1 text-xs">
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 flex items-center gap-1">
+              <Info className="w-3.5 h-3.5 text-slate-400" /> symptoms reported
+            </p>
+            <p className="text-slate-600 italic line-clamp-2 leading-relaxed">&ldquo;{symptoms}&rdquo;</p>
+          </div>
+        )}
       </div>
 
-      <div className="space-y-3 mb-6 bg-gray-50/50 p-4 rounded-xl border border-gray-100">
-        <div className="flex items-center gap-3 text-gray-600">
-          <Calendar className="w-4 h-4 text-primary-500" />
-          <span className="text-sm font-semibold">{new Date(appointmentDate).toDateString()}</span>
-        </div>
-        <div className="flex items-center gap-3 text-gray-600">
-          <Clock className="w-4 h-4 text-primary-500" />
-          <span className="text-sm font-semibold">{timeSlot}</span>
-        </div>
-        <div className="flex items-center gap-3 text-gray-600">
-          <DollarSign className="w-4 h-4 text-primary-500" />
-          <span className="text-sm font-semibold">₹{consultationFee}</span>
-        </div>
-      </div>
-
-      {symptoms && (
-          <div className="mb-6 px-1">
-              <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
-                  <Info className="w-3.5 h-3.5" /> symptoms reported
-              </p>
-              <p className="text-sm text-gray-600 italic line-clamp-2 leading-relaxed">&ldquo;{symptoms}&rdquo;</p>
-          </div>
-      )}
-
-      <div className="flex gap-3">
-        {status !== 'cancelled' && status !== 'completed' && !isDoctor && (
+      <div className="flex gap-2.5 pt-2 shrink-0">
+        {status !== 'cancelled' && status !== 'completed' && (
           <button
             onClick={() => onCancel(_id)}
-            className="flex-1 bg-white hover:bg-rose-50 text-rose-600 border border-rose-200 py-3 rounded-xl text-sm font-bold transition-all flex items-center justify-center gap-2"
+            className="flex-1 bg-white hover:bg-rose-50 text-rose-600 border border-rose-100 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1 active:scale-95"
           >
-            <XCircle className="w-4 h-4" /> Cancel
+            <XCircle className="w-3.5 h-3.5" /> Cancel
           </button>
         )}
-        <button 
-          onClick={() => navigate(`/doctors/${doctorId?._id}`)}
-          className="flex-1 bg-primary-600 hover:bg-primary-700 text-white py-3 rounded-xl text-sm font-bold transition-all shadow-lg shadow-primary-500/20 active:scale-95"
-        >
-          View Details
-        </button>
+        
+        {isDoctor ? (
+          status !== 'completed' && status !== 'cancelled' && (
+            <button 
+              onClick={onComplete}
+              className="flex-1 bg-primary-600 hover:bg-primary-700 text-white py-2.5 rounded-xl text-xs font-bold transition-all shadow-md shadow-primary-500/10 active:scale-95 text-center flex items-center justify-center gap-1.5"
+            >
+              Start Consultation
+            </button>
+          )
+        ) : (
+          <button 
+            onClick={() => navigate(`/doctors/${doctorId?._id || doctorId}`)}
+            className="flex-1 bg-primary-600 hover:bg-primary-700 text-white py-2.5 rounded-xl text-xs font-bold transition-all shadow-md shadow-primary-500/10 active:scale-95 text-center flex items-center justify-center gap-1.5"
+          >
+            View Doctor
+          </button>
+        )}
       </div>
     </div>
   );

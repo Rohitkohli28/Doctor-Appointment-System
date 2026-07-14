@@ -3,6 +3,7 @@ const router = express.Router();
 const {
   getDoctors,
   getDoctorById,
+  getMyDoctorProfile,
   updateDoctorProfile,
   getAvailableSlots,
   getSpecializations,
@@ -12,15 +13,17 @@ const {
 } = require('../controllers/doctorController');
 const { protect } = require('../middleware/auth');
 const roleCheck = require('../middleware/roleCheck');
+const { doctorCheck } = require('../middleware/doctorAuth');
 
 router.get('/specializations', getSpecializations);
+router.get('/profile/me', protect, doctorCheck, getMyDoctorProfile);
 
 router.route('/')
   .get(getDoctors);
 
 router.route('/:id')
   .get(getDoctorById)
-  .put(protect, roleCheck('doctor'), updateDoctorProfile);
+  .put(protect, doctorCheck, updateDoctorProfile);
 
 router.get('/:id/available-slots', getAvailableSlots);
 

@@ -10,6 +10,7 @@ const Doctor = require('../models/Doctor');
 dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
 const doctorsData = [
+  { name: 'Demo Doctor', email: 'doctor.demo@medicare.test', spec: 'General Physician', exp: 10, fees: 500, gender: 'male' },
   { name: 'Amit Sharma', email: 'amit@example.com', spec: 'Cardiologist', exp: 10, fees: 800, gender: 'male' },
   { name: 'Priya Verma', email: 'priya@example.com', spec: 'Dermatologist', exp: 6, fees: 500, gender: 'female' },
   { name: 'Raj Mehta', email: 'raj@example.com', spec: 'Orthopedic', exp: 12, fees: 1000, gender: 'male' },
