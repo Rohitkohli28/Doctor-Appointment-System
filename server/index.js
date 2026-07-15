@@ -51,6 +51,11 @@ const medicalHistory = require('./routes/medicalHistory');
 const ai = require('./routes/ai');
 const payments = require('./routes/payments');
 
+// Base route
+app.get('/', (req, res) => {
+  res.json({ success: true, message: 'MediCare API is running successfully!' });
+});
+
 // Mount routers
 app.use('/api/auth', auth);
 app.use('/api/doctors', doctors);
@@ -64,11 +69,21 @@ app.use(errorHandler);
 
 const PORT = process.env.PORT || 5000;
 
-server.listen(PORT, console.log(`Server running in ${process.env.NODE_ENV || 'development'} mode on port ${PORT}`));
+if (process.env.VERCEL !== '1') {
+  server.listen(PORT, console.log(`Server running in ${process.env.NODE_ENV || 'development'} mode on port ${PORT}`));
+}
 
 // Handle unhandled promise rejections
 process.on('unhandledRejection', (err, promise) => {
   console.log(`Error: ${err.message}`);
   // Close server & exit process
-  server.close(() => process.exit(1));
+  if (process.env.VERCEL !== '1') {
+    server.close(() => process.exit(1));
+  } else {
+    process.exit(1);
+  }
 });
+
+// Export Express app for Vercel Serverless Functions
+module.exports = app;
+
