@@ -14,7 +14,17 @@ exports.createAppointment = async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'Doctor not found' });
     }
 
-    const consultationFee = doctor.consultationFee;
+    // Check if slot is already booked for this doctor
+    const existingAppointment = await Appointment.findOne({
+      doctorId,
+      appointmentDate: new Date(appointmentDate),
+      timeSlot,
+      status: { $ne: 'cancelled' }
+    });
+
+    if (existingAppointment) {
+      return res.status(409).json({ success: false, message: 'Slot no longer available', code: 'SLOT_UNAVAILABLE' });
+    }
 
     const appointment = await Appointment.create({
       patientId,
@@ -23,7 +33,7 @@ exports.createAppointment = async (req, res, next) => {
       timeSlot,
       type,
       symptoms,
-      consultationFee,
+      consultationFee: doctor.consultationFee || 500,
       status: 'pending' // pending until paid if razorpay requires it, otherwise confirmed. Standard is pending.
     });
 
@@ -41,6 +51,20 @@ exports.createAppointment = async (req, res, next) => {
       console.error('Email not sent', err);
     }
 
+    // Create Notification
+    try {
+      const Notification = require('../models/Notification');
+      await Notification.create({
+        userId: patientId,
+        title: 'Appointment Booked',
+        message: `Your appointment with Dr. ${doctor.userId.name} on ${new Date(appointmentDate).toLocaleDateString()} at ${timeSlot} is initiated.`,
+        type: 'appointment',
+        relatedId: appointment._id
+      });
+    } catch (e) {
+      console.error('Failed to create notification', e);
+    }
+
     // Socket Event
     const io = req.app.get('io');
     if (io) {
@@ -49,10 +73,20 @@ exports.createAppointment = async (req, res, next) => {
         appointmentDate,
         timeSlot
       });
+      io.emit('new-appointment', {
+        doctorId,
+        patientId,
+        patientName: user.name,
+        timeSlot,
+        appointmentDate
+      });
     }
 
     res.status(201).json({ success: true, data: appointment });
   } catch (error) {
+    if (error.code === 11000) {
+      return res.status(409).json({ success: false, message: 'Slot no longer available', code: 'SLOT_UNAVAILABLE' });
+    }
     next(error);
   }
 };
@@ -66,6 +100,15 @@ exports.getMyAppointments = async (req, res, next) => {
       })
       .sort({ appointmentDate: 1, timeSlot: 1 });
 
+    // Filter out invalid/orphaned demo appointments where doctorId or doctor.userId is missing
+    const validAppointments = appointments.filter(app => app.doctorId && app.doctorId.userId);
+
+    // Clean up orphaned demo appointments from DB
+    const orphanedIds = appointments.filter(app => !app.doctorId || !app.doctorId.userId).map(app => app._id);
+    if (orphanedIds.length > 0) {
+      await Appointment.deleteMany({ _id: { $in: orphanedIds } });
+    }
+
     const grouped = {
       upcoming: [],
       past: [],
@@ -74,7 +117,7 @@ exports.getMyAppointments = async (req, res, next) => {
 
     const now = new Date();
 
-    appointments.forEach(app => {
+    validAppointments.forEach(app => {
       if (app.status === 'cancelled') {
         grouped.cancelled.push(app);
       } else if (new Date(app.appointmentDate) >= now || app.status === 'pending' || app.status === 'confirmed') {
@@ -122,6 +165,15 @@ exports.cancelAppointment = async (req, res, next) => {
 
     appointment.status = 'cancelled';
     await appointment.save();
+
+    const io = req.app.get('io');
+    if (io) {
+      io.emit('appointment-cancelled', {
+        appointmentId: appointment._id,
+        doctorId: appointment.doctorId,
+        patientId: appointment.patientId
+      });
+    }
 
     res.json({ success: true, data: appointment });
   } catch (error) {
@@ -191,6 +243,32 @@ exports.completeAppointment = async (req, res, next) => {
       record = await MedicalRecord.create(recordData);
     }
 
+    // Create DB Notification for Patient to download medical report
+    try {
+      const Notification = require('../models/Notification');
+      const docUser = await User.findById(req.user.id);
+      const doctorName = docUser ? docUser.name : 'your doctor';
+
+      await Notification.create({
+        userId: appointment.patientId,
+        title: 'Medical Report & Prescription Ready 📄',
+        message: `Dr. ${doctorName} has updated your consultation summary and issued your digital prescription. You can now view and download your official PDF Medical Report from Medical History.`,
+        type: 'medical',
+        relatedId: record._id
+      });
+    } catch (e) {
+      console.error('Failed to create medical report notification', e);
+    }
+
+    const io = req.app.get('io');
+    if (io) {
+      io.emit('appointment-completed', {
+        appointmentId: appointment._id,
+        doctorId: appointment.doctorId,
+        patientId: appointment.patientId
+      });
+    }
+
     res.json({ success: true, data: appointment, record });
   } catch (error) {
     next(error);
@@ -213,6 +291,19 @@ exports.rescheduleAppointment = async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'Reschedule allowed only 48 hours before' });
     }
 
+    // Checking availability for the new slot
+    const existingSlot = await Appointment.findOne({
+      doctorId: appointment.doctorId,
+      appointmentDate: new Date(newDate),
+      timeSlot: newTimeSlot,
+      status: { $ne: 'cancelled' },
+      _id: { $ne: appointment._id }
+    });
+
+    if (existingSlot) {
+      return res.status(409).json({ success: false, message: 'Slot no longer available', code: 'SLOT_UNAVAILABLE' });
+    }
+
     appointment.appointmentDate = newDate;
     appointment.timeSlot = newTimeSlot;
     appointment.status = 'pending';
@@ -220,6 +311,9 @@ exports.rescheduleAppointment = async (req, res, next) => {
 
     res.json({ success: true, data: appointment });
   } catch (error) {
+    if (error.code === 11000) {
+      return res.status(409).json({ success: false, message: 'Slot no longer available', code: 'SLOT_UNAVAILABLE' });
+    }
     next(error);
   }
 };

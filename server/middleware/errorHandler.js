@@ -8,10 +8,10 @@ const errorHandler = (err, req, res, next) => {
     message = 'Resource not found';
   }
 
-  // Mongoose duplicate key
+  // Mongoose duplicate key (e.g. double booking unique index collision)
   if (err.code === 11000) {
-    statusCode = 400;
-    message = 'Duplicate field value entered';
+    statusCode = 409;
+    message = 'Slot no longer available';
   }
 
   // Mongoose validation error

@@ -28,4 +28,13 @@ const appointmentSchema = new mongoose.Schema({
   diagnosis: { type: String }
 }, { timestamps: true });
 
+// Prevent double-booking race conditions at database level for non-cancelled appointments
+appointmentSchema.index(
+  { doctorId: 1, appointmentDate: 1, timeSlot: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { status: { $ne: 'cancelled' } }
+  }
+);
+
 module.exports = mongoose.model('Appointment', appointmentSchema);

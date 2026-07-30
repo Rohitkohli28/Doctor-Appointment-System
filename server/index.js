@@ -3,6 +3,9 @@ const dotenv = require('dotenv');
 const cors = require('cors');
 const http = require('http');
 const { Server } = require('socket.io');
+const cookieParser = require('cookie-parser');
+const helmet = require('helmet');
+const mongoSanitize = require('express-mongo-sanitize');
 
 const connectDB = require('./config/db');
 const errorHandler = require('./middleware/errorHandler');
@@ -15,6 +18,12 @@ connectDB();
 
 // Trigger nodemon restart to load new .env variables
 const app = express();
+
+// Secure HTTP headers
+app.use(helmet());
+
+// Parse cookies
+app.use(cookieParser());
 
 const server = http.createServer(app);
 const io = new Server(server, {
@@ -30,6 +39,14 @@ app.set('io', io);
 
 // Body parser
 app.use(express.json());
+
+// Data sanitization against NoSQL query injection
+app.use((req, res, next) => {
+  if (req.body) mongoSanitize.sanitize(req.body);
+  if (req.params) mongoSanitize.sanitize(req.params);
+  if (req.query) mongoSanitize.sanitize(req.query);
+  next();
+});
 
 // Enable CORS
 app.use(cors({ origin: [process.env.CLIENT_URL, 'http://localhost:5173', 'http://localhost:5174', 'http://localhost:5175'], credentials: true }));
@@ -50,6 +67,7 @@ const appointments = require('./routes/appointments');
 const medicalHistory = require('./routes/medicalHistory');
 const ai = require('./routes/ai');
 const payments = require('./routes/payments');
+const notifications = require('./routes/notifications');
 
 // Base route
 app.get('/', (req, res) => {
@@ -63,6 +81,7 @@ app.use('/api/appointments', appointments);
 app.use('/api/medical-history', medicalHistory);
 app.use('/api/ai', ai);
 app.use('/api/payments', payments);
+app.use('/api/notifications', notifications);
 
 // Error Handler Middleware
 app.use(errorHandler);

@@ -8,15 +8,23 @@ export const useMedicalHistory = () => {
   const [error, setError] = useState(null);
 
   const fetchHistory = useCallback(async () => {
+    const storedUser = localStorage.getItem('user');
+    if (!storedUser) {
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     setError(null);
     try {
       const res = await api.get('/medical-history/my');
       setHistory(res.data.data);
     } catch (err) {
-      const msg = err.response?.data?.message || 'Failed to fetch medical history';
-      setError(msg);
-      toast.error(msg);
+      if (err.response?.status !== 401) {
+        const msg = err.response?.data?.message || 'Failed to fetch medical history';
+        setError(msg);
+        toast.error(msg);
+      }
     } finally {
       setLoading(false);
     }

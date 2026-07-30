@@ -6,7 +6,7 @@
 
 @layer base {
   body {
-    @apply font-sans antialiased text-slate-800 bg-slate-50/50;
+    @apply font-sans antialiased text-slate-800 bg-slate-50/50 dark:bg-darkbg dark:text-slate-100;
   }
 }
 
@@ -87,4 +87,48 @@
     transform: scale(2);
     opacity: 0;
   }
+}
+
+/* Theme transition */
+body, div, header, nav, main, footer, section, aside, form, input, select, textarea, button, p, span, h1, h2, h3, h4, h5, h6, table, tr, td, th, border, a, svg {
+  transition: background-color 200ms ease, border-color 200ms ease, color 200ms ease, box-shadow 200ms ease;
+}
+
+/* Premium Shimmer Loader */
+@keyframes shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.shimmer-bg {
+  @apply bg-slate-200 dark:bg-slate-800 relative overflow-hidden;
+}
+
+.shimmer-bg::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.4) 20%,
+    rgba(255, 255, 255, 0.6) 60%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  animation: shimmer 1.6s infinite;
+}
+
+.dark .shimmer-bg::after {
+  background: linear-gradient(
+    90deg,
+    rgba(15, 23, 42, 0) 0%,
+    rgba(15, 23, 42, 0.3) 20%,
+    rgba(15, 23, 42, 0.5) 60%,
+    rgba(15, 23, 42, 0) 100%
+  );
 }

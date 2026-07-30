@@ -19,17 +19,17 @@ router.get('/specializations', getSpecializations);
 router.get('/profile/me', protect, doctorCheck, getMyDoctorProfile);
 
 router.route('/')
-  .get(getDoctors);
+  .get(protect, getDoctors);
 
 router.route('/:id')
-  .get(getDoctorById)
+  .get(protect, getDoctorById)
   .put(protect, doctorCheck, updateDoctorProfile);
 
-router.get('/:id/available-slots', getAvailableSlots);
+router.get('/:id/available-slots', protect, getAvailableSlots);
 
 router.route('/:id/reviews')
   .post(protect, roleCheck('patient'), addReview)
-  .get(getReviews);
+  .get(protect, getReviews);
 
 router.put('/admin/approve/:id', protect, roleCheck('admin'), approveDoctor);
 

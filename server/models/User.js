@@ -16,6 +16,8 @@ const userSchema = new mongoose.Schema({
     pincode: String
   },
   refreshToken: { type: String },
+  resetPasswordToken: { type: String },
+  resetPasswordExpire: { type: Date },
   isVerified: { type: Boolean, default: false }
 }, { timestamps: true });
 
