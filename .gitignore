@@ -28,3 +28,8 @@ client/.env
 *.sln
 *.sw?
 .DS_Store
+
+# Archives
+*.zip
+*.tar.gz
+*.rar
