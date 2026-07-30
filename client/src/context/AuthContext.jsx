@@ -1,5 +1,5 @@
 import { createContext, useState, useEffect } from 'react';
-import api, { resetSessionExpiredFlag } from '../utils/api';
+import api, { resetSessionExpiredFlag, getApiBaseUrl } from '../utils/api';
 import toast from 'react-hot-toast';
 
 export const AuthContext = createContext();
@@ -69,7 +69,8 @@ export const AuthProvider = ({ children }) => {
       return { ...res.data, user: userData };
     } catch (err) {
       if (!err.response || err.message === 'Network Error') {
-        toast.error('Network Error: Unable to connect to backend server. Please check connection.', { duration: 5000, id: 'login-net-error' });
+        const targetUrl = getApiBaseUrl();
+        toast.error(`Network Error: Unable to connect to ${targetUrl}. Check VITE_API_URL in Vercel & Redeploy!`, { duration: 7000, id: 'login-net-error' });
       } else {
         toast.error(err.response?.data?.message || 'Login failed');
       }
@@ -95,7 +96,8 @@ export const AuthProvider = ({ children }) => {
       return { ...res.data, user: userData };
     } catch (err) {
       if (!err.response || err.message === 'Network Error') {
-        toast.error('Network Error: Unable to connect to backend server. Please check connection.', { duration: 5000, id: 'doc-login-net-error' });
+        const targetUrl = getApiBaseUrl();
+        toast.error(`Network Error: Unable to connect to ${targetUrl}. Check VITE_API_URL in Vercel & Redeploy!`, { duration: 7000, id: 'doc-login-net-error' });
       } else {
         toast.error(err.response?.data?.message || 'Doctor login failed');
       }
@@ -118,8 +120,9 @@ export const AuthProvider = ({ children }) => {
           id: 'user-exists-toast'
         });
       } else if (!err.response || err.message === 'Network Error') {
-        toast.error('Network Error: Unable to connect to backend server. Please check connection.', {
-          duration: 5000,
+        const targetUrl = getApiBaseUrl();
+        toast.error(`Network Error: Unable to connect to ${targetUrl}. Check VITE_API_URL in Vercel & Redeploy!`, {
+          duration: 7000,
           id: 'network-error-toast'
         });
       } else {
