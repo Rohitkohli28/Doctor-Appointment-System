@@ -1,13 +1,67 @@
 import axios from 'axios';
 import toast from 'react-hot-toast';
 
+export const getApiBaseUrl = () => {
+  if (import.meta.env.VITE_API_URL) {
+    return import.meta.env.VITE_API_URL.replace(/\/$/, '');
+  }
+  // In production / live browser deployment without VITE_API_URL set
+  if (
+    typeof window !== 'undefined' &&
+    window.location &&
+    !window.location.hostname.includes('localhost') &&
+    !window.location.hostname.includes('127.0.0.1')
+  ) {
+    return `${window.location.origin}/api`;
+  }
+  return 'http://localhost:5000/api';
+};
+
+export const getSocketUrl = () => {
+  if (import.meta.env.VITE_SOCKET_URL) {
+    return import.meta.env.VITE_SOCKET_URL.replace(/\/$/, '');
+  }
+  if (import.meta.env.VITE_API_URL) {
+    return import.meta.env.VITE_API_URL.replace(/\/api\/?$/, '');
+  }
+  if (
+    typeof window !== 'undefined' &&
+    window.location &&
+    !window.location.hostname.includes('localhost') &&
+    !window.location.hostname.includes('127.0.0.1')
+  ) {
+    return window.location.origin;
+  }
+  return 'http://localhost:5000';
+};
+
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000/api',
+  baseURL: getApiBaseUrl(),
   withCredentials: true,
   headers: {
     'Content-Type': 'application/json'
   }
 });
+
+// Interceptor to attach Authorization Bearer token header if available in localStorage
+api.interceptors.request.use(
+  (config) => {
+    if (!config.baseURL || config.baseURL.includes('localhost:5000')) {
+      config.baseURL = getApiBaseUrl();
+    }
+    const userStr = localStorage.getItem('user');
+    if (userStr) {
+      try {
+        const user = JSON.parse(userStr);
+        if (user?.token) {
+          config.headers.Authorization = `Bearer ${user.token}`;
+        }
+      } catch (e) {}
+    }
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
 
 let sessionExpiredShown = false;
 
@@ -40,11 +94,22 @@ api.interceptors.response.use(
       // Case 2: Previously Logged-in User whose session expired
       try {
         // Attempt refresh token
-        await axios.post(
-          `${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/auth/refresh-token`,
+        const refreshRes = await axios.post(
+          `${getApiBaseUrl()}/auth/refresh-token`,
           {},
           { withCredentials: true }
         );
+        
+        if (refreshRes.data?.token) {
+          const userStr = localStorage.getItem('user');
+          if (userStr) {
+            try {
+              const u = JSON.parse(userStr);
+              u.token = refreshRes.data.token;
+              localStorage.setItem('user', JSON.stringify(u));
+            } catch (e) {}
+          }
+        }
         
         return api(originalRequest);
       } catch (err) {

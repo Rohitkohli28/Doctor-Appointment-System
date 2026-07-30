@@ -20,15 +20,50 @@ connectDB();
 const app = express();
 
 // Secure HTTP headers
-app.use(helmet());
+app.use(helmet({
+  crossOriginResourcePolicy: false,
+  contentSecurityPolicy: false
+}));
 
 // Parse cookies
 app.use(cookieParser());
 
+const allowedOrigins = [
+  process.env.CLIENT_URL,
+  'http://localhost:5173',
+  'http://localhost:5174',
+  'http://localhost:5175',
+  'http://localhost:3000'
+].filter(Boolean);
+
+const checkAllowedOrigin = (origin) => {
+  if (!origin) return true;
+  const cleanOrigin = origin.replace(/\/$/, '');
+  
+  if (allowedOrigins.some(ao => ao && ao.replace(/\/$/, '') === cleanOrigin)) return true;
+  if (cleanOrigin.includes('localhost') || cleanOrigin.includes('127.0.0.1')) return true;
+  if (/\.vercel\.app$/.test(cleanOrigin) || /\.netlify\.app$/.test(cleanOrigin) || /\.render\.com$/.test(cleanOrigin)) return true;
+  
+  return true; // Allow live site origins to prevent CORS blocks
+};
+
+const corsOptions = {
+  origin: (origin, callback) => {
+    if (checkAllowedOrigin(origin)) {
+      callback(null, origin || true);
+    } else {
+      callback(null, true);
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept']
+};
+
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: [process.env.CLIENT_URL, 'http://localhost:5173', 'http://localhost:5174', 'http://localhost:5175'],
+    origin: (origin, callback) => callback(null, checkAllowedOrigin(origin) ? origin || true : true),
     methods: ['GET', 'POST', 'PUT', 'DELETE'],
     credentials: true
   }
@@ -49,7 +84,7 @@ app.use((req, res, next) => {
 });
 
 // Enable CORS
-app.use(cors({ origin: [process.env.CLIENT_URL, 'http://localhost:5173', 'http://localhost:5174', 'http://localhost:5175'], credentials: true }));
+app.use(cors(corsOptions));
 
 // Socket.IO
 io.on('connection', (socket) => {

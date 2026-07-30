@@ -51,20 +51,28 @@ export const AuthProvider = ({ children }) => {
       const res = await api.post('/auth/login', { email, password });
       
       resetSessionExpiredFlag();
-      localStorage.setItem('user', JSON.stringify(res.data.user));
-      setUser(res.data.user);
+      const userData = {
+        ...res.data.user,
+        token: res.data.token || res.data.accessToken
+      };
+      localStorage.setItem('user', JSON.stringify(userData));
+      setUser(userData);
       setIsAuthenticated(true);
       
-      const isDoc = res.data.user?.role === 'doctor';
-      const userName = res.data.user?.name || (isDoc ? 'Doctor' : 'Patient');
+      const isDoc = userData.role === 'doctor';
+      const userName = userData.name || (isDoc ? 'Doctor' : 'Patient');
       const welcomeMsg = isDoc 
         ? `Welcome back, Dr. ${userName.replace(/^Dr\.\s*/i, '')}! Redirecting to Doctor Portal...`
         : `Welcome back, ${userName}! Redirecting to your dashboard...`;
 
       toast.success(welcomeMsg, { duration: 4000, id: 'login-welcome-toast' });
-      return res.data;
+      return { ...res.data, user: userData };
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Login failed');
+      if (!err.response || err.message === 'Network Error') {
+        toast.error('Network Error: Unable to connect to backend server. Please check connection.', { duration: 5000, id: 'login-net-error' });
+      } else {
+        toast.error(err.response?.data?.message || 'Login failed');
+      }
       throw err;
     }
   };
@@ -74,15 +82,23 @@ export const AuthProvider = ({ children }) => {
       const res = await api.post('/auth/doctor/login', { email, password });
       
       resetSessionExpiredFlag();
-      localStorage.setItem('user', JSON.stringify(res.data.user));
-      setUser(res.data.user);
+      const userData = {
+        ...res.data.user,
+        token: res.data.token || res.data.accessToken
+      };
+      localStorage.setItem('user', JSON.stringify(userData));
+      setUser(userData);
       setIsAuthenticated(true);
       
-      const userName = res.data.user?.name || 'Doctor';
+      const userName = userData.name || 'Doctor';
       toast.success(`Welcome back, Dr. ${userName.replace(/^Dr\.\s*/i, '')}! Redirecting to Doctor Portal...`, { duration: 4000, id: 'doctor-login-welcome-toast' });
-      return res.data;
+      return { ...res.data, user: userData };
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Doctor login failed');
+      if (!err.response || err.message === 'Network Error') {
+        toast.error('Network Error: Unable to connect to backend server. Please check connection.', { duration: 5000, id: 'doc-login-net-error' });
+      } else {
+        toast.error(err.response?.data?.message || 'Doctor login failed');
+      }
       throw err;
     }
   };
@@ -102,7 +118,7 @@ export const AuthProvider = ({ children }) => {
           id: 'user-exists-toast'
         });
       } else if (!err.response || err.message === 'Network Error') {
-        toast.error('Network Error: Unable to connect to the backend server. Please check your connection.', {
+        toast.error('Network Error: Unable to connect to backend server. Please check connection.', {
           duration: 5000,
           id: 'network-error-toast'
         });

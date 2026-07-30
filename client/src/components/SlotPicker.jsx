@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { format, addDays } from 'date-fns';
-import api from '../utils/api';
+import api, { getSocketUrl } from '../utils/api';
 import { io } from 'socket.io-client';
 import toast from 'react-hot-toast';
 
@@ -34,7 +34,7 @@ const SlotPicker = ({ doctorId, selectedDate, setSelectedDate, selectedSlot, set
     fetchSlots();
 
     // Socket Setup for Real-time slot booking updates
-    const socket = io(import.meta.env.VITE_SOCKET_URL || 'http://localhost:5000');
+    const socket = io(getSocketUrl());
     
     socket.on('slot-booked', (data) => {
       if (data.doctorId === doctorId && format(new Date(data.appointmentDate), 'yyyy-MM-dd') === format(selectedDate, 'yyyy-MM-dd')) {

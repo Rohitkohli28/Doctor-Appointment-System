@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import api from '../utils/api';
+import api, { getSocketUrl } from '../utils/api';
 import toast from 'react-hot-toast';
 import { io } from 'socket.io-client';
 
@@ -46,7 +46,7 @@ export const useAppointments = () => {
   useEffect(() => {
     fetchAppointments();
 
-    const socket = io(import.meta.env.VITE_SOCKET_URL || 'http://localhost:5000');
+    const socket = io(getSocketUrl());
 
     socket.on('appointment-completed', () => {
       toast.success('🔔 Your doctor has completed the consultation and issued a prescription!');

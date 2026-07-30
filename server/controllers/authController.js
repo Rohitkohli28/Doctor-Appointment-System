@@ -5,7 +5,7 @@ const bcrypt = require('bcryptjs');
 
 const generateAccessToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_ACCESS_SECRET, {
-    expiresIn: process.env.JWT_ACCESS_EXPIRE || '15m',
+    expiresIn: process.env.JWT_ACCESS_EXPIRE || process.env.JWT_EXPIRE || '15m',
   });
 };
 
@@ -19,10 +19,12 @@ const setTokenCookies = (res, userId) => {
   const accessToken = generateAccessToken(userId);
   const refreshToken = generateRefreshToken(userId);
 
+  const isProd = process.env.NODE_ENV === 'production' || process.env.VERCEL === '1' || process.env.RENDER === 'true';
+
   const cookieOptions = {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax'
+    secure: isProd,
+    sameSite: isProd ? 'none' : 'lax'
   };
 
   res.cookie('accessToken', accessToken, {
@@ -35,7 +37,7 @@ const setTokenCookies = (res, userId) => {
     maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
   });
 
-  return refreshToken;
+  return { accessToken, refreshToken };
 };
 
 exports.register = async (req, res, next) => {
@@ -113,13 +115,15 @@ exports.login = async (req, res, next) => {
       }
     }
 
-    const refreshToken = setTokenCookies(res, user._id);
+    const { accessToken, refreshToken } = setTokenCookies(res, user._id);
 
     user.refreshToken = refreshToken;
     await user.save();
 
     res.json({
       success: true,
+      token: accessToken,
+      accessToken,
       user: {
         _id: user._id,
         name: user.name,
@@ -162,13 +166,15 @@ exports.doctorLogin = async (req, res, next) => {
       return res.status(403).json({ success: false, message: 'This doctor account is pending approval.', code: 'FORBIDDEN' });
     }
 
-    const refreshToken = setTokenCookies(res, user._id);
+    const { accessToken, refreshToken } = setTokenCookies(res, user._id);
 
     user.refreshToken = refreshToken;
     await user.save();
 
     res.json({
       success: true,
+      token: accessToken,
+      accessToken,
       user: {
         _id: user._id,
         name: user.name,
@@ -194,10 +200,12 @@ exports.logout = async (req, res, next) => {
       }
     }
 
+    const isProd = process.env.NODE_ENV === 'production' || process.env.VERCEL === '1' || process.env.RENDER === 'true';
+
     const cookieOptions = {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict'
+      secure: isProd,
+      sameSite: isProd ? 'none' : 'lax'
     };
 
     res.clearCookie('accessToken', cookieOptions);
@@ -229,14 +237,16 @@ exports.refreshToken = async (req, res, next) => {
 
       const newAccessToken = generateAccessToken(user._id);
 
+      const isProd = process.env.NODE_ENV === 'production' || process.env.VERCEL === '1' || process.env.RENDER === 'true';
+
       res.cookie('accessToken', newAccessToken, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
+        secure: isProd,
+        sameSite: isProd ? 'none' : 'lax',
         maxAge: 15 * 60 * 1000 // 15 minutes
       });
 
-      res.json({ success: true });
+      res.json({ success: true, token: newAccessToken, accessToken: newAccessToken });
     });
   } catch (error) {
     next(error);

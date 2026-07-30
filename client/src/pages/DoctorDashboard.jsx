@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../hooks/useAuth';
-import api from '../utils/api';
+import api, { getSocketUrl } from '../utils/api';
 import toast from 'react-hot-toast';
 import { io } from 'socket.io-client';
 import AppointmentCard from '../components/AppointmentCard';
@@ -98,7 +98,7 @@ const DoctorDashboard = ({ view = 'dashboard' }) => {
   useEffect(() => {
     fetchDashboardData();
 
-    const socket = io(import.meta.env.VITE_SOCKET_URL || 'http://localhost:5000');
+    const socket = io(getSocketUrl());
 
     socket.on('new-appointment', (data) => {
       toast.success(`🔔 New appointment booked for ${data.timeSlot}!`);

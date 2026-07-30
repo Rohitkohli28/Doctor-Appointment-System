@@ -8,6 +8,7 @@ const Login = () => {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState(null);
   const { login } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -18,6 +19,7 @@ const Login = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
+    setErrorMessage(null);
     try {
       const res = await login(email, password);
       // Redirect based on role or state target
@@ -28,6 +30,12 @@ const Login = () => {
       }
     } catch (error) {
       console.error(error);
+      const msg = error.response?.data?.message;
+      if (!error.response || error.message === 'Network Error') {
+        setErrorMessage('Network Error: Unable to connect to the backend server. Please check your internet connection or backend URL configuration.');
+      } else {
+        setErrorMessage(msg || 'Sign in failed. Please check your email and password.');
+      }
     } finally {
       setIsLoading(false);
     }
@@ -54,6 +62,12 @@ const Login = () => {
             Sign in using the email and password created during registration.
           </p>
         </div>
+
+        {errorMessage && (
+          <div className="p-4 rounded-2xl border text-xs font-semibold bg-red-50 dark:bg-red-950/30 border-red-300 dark:border-red-700/50 text-red-900 dark:text-red-200">
+            {errorMessage}
+          </div>
+        )}
 
         {/* Info Box */}
         <div className="bg-sky-50/90 dark:bg-cyan-950/40 border border-sky-200/80 dark:border-cyan-800/50 rounded-2xl p-3.5 flex items-start gap-3 shadow-xs">

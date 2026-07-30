@@ -8,6 +8,7 @@ const DoctorLogin = () => {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState(null);
   const { doctorLogin, login } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -18,9 +19,9 @@ const DoctorLogin = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
+    setErrorMessage(null);
     try {
-      // Use standard login or doctorLogin which both handle authentication
-      const res = await login(email, password);
+      const res = await doctorLogin(email, password);
       if (res.user?.role === 'doctor') {
         navigate(fromTarget || '/doctor/dashboard', { replace: true });
       } else {
@@ -28,6 +29,12 @@ const DoctorLogin = () => {
       }
     } catch (error) {
       console.error(error);
+      const msg = error.response?.data?.message;
+      if (!error.response || error.message === 'Network Error') {
+        setErrorMessage('Network Error: Unable to connect to backend server. Please check internet connection or backend URL configuration.');
+      } else {
+        setErrorMessage(msg || 'Doctor sign in failed. Please check your email and password.');
+      }
     } finally {
       setIsLoading(false);
     }
@@ -54,6 +61,12 @@ const DoctorLogin = () => {
             Sign in using the email and password created during registration.
           </p>
         </div>
+
+        {errorMessage && (
+          <div className="p-4 rounded-2xl border text-xs font-semibold bg-red-50 dark:bg-red-950/30 border-red-300 dark:border-red-700/50 text-red-900 dark:text-red-200">
+            {errorMessage}
+          </div>
+        )}
 
         {/* Info Box */}
         <div className="bg-emerald-50/90 dark:bg-emerald-950/40 border border-emerald-200/80 dark:border-emerald-800/50 rounded-2xl p-3.5 flex items-start gap-3 shadow-xs">
